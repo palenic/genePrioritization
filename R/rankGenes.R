@@ -1,0 +1,64 @@
+#' Potential disease gene ranking
+#'
+#' Ranks genes in a coexpression matrix according to their coexpression
+#' with known disease-related "seed" genes. Takes as input a correlation
+#' matrix with shape (nGenes, nSeed) and computes column-wise ranks according
+#' to decreasing coexpression, such that each seed gene has a separate ranked
+#' coexpression list and highest coexpression corresponds to rank 1. Note that
+#' the coexpression between each seed and itself is set to NA, so all other
+#' genes but the seed are ranked.
+#' Used alternatively to
+#' \code{\link{prioritizeCandidates}}, after \code{\link{findCoexpression}} as
+#' part of \code{\link{genePrioritization}} workflow.
+#'
+#' @usage rankGenes(corrMatrix, antiCorrelation=FALSE)
+#'
+#' @param corrMatrix A correlation matrix with the seed genes as the columns
+#' and all genes as the rows. Both rows and columns have to be named with
+#' gene symbols or IDs.
+#' @param antiCorrelation A logical value (default FALSE). If TRUE,
+#' anti-correlation will be considered as a significant correlation, thus
+#' strongly anti-correlated genes will have a high rank.
+#' @return A named matrix of shape (nGenes, nSeed) with the rank of each gene
+#' in each seed gene coexpression list. Genes are ranked according to their
+#' decreasing coexpression. Rank(seed, seed) is set to NA.
+#' @author Chiara Paleni\cr Politecnico di Milano\cr Maintainer: Chiara Paleni
+#' \cr E-Mail: <chiara.paleni@@polimi.it>
+#' @references \url{https://www.ncbi.nlm.nih.gov/pmc/articles/PMC2935433/}\cr
+#' Piro, Rosario M et al. “Candidate gene prioritization based on spatially
+#' mapped gene expression: an application to XLMR.” Bioinformatics (Oxford,
+#' England) vol. 26,18 (2010): i618-24. doi:10.1093/bioinformatics/btq396
+#' @seealso \code{\link{prioritizeCandidates}}, \code{\link{findCoexpression}},
+#' \code{\link{candidateScoring}}\cr
+#' @examples
+#' a <- matrix(c(1,2,3,2,4,6,8,6,4,5,2,8,7,1,5),
+#' nrow=5, ncol=3,byrow=TRUE)
+#' colnames(a) <- c('sample1','sample2','sample3')
+#' rownames(a) <- c('gene1','gene2','gene3','gene4','gene5')
+#' seed <- c('gene1')
+#' candidates <- c('gene2','gene4')
+#' x <- findCoexpression(counts=a, seedGenes=seed)
+#' y <- rankGenes(x)
+#' z <- candidateScoring(y, candidates)
+#' @export
+
+rankGenes <- function(corrMatrix, antiCorrelation=FALSE){
+    ## input validation
+    checkMatrix(corrMatrix, "correlation")
+    if(!is.logical(antiCorrelation)){
+        stop("antiCorrelation parameter is not a logical value")
+    }
+    seedGenes <- colnames(corrMatrix)
+    ## removing seed genes
+    for (s in seedGenes)
+        corrMatrix[s,s] <- NA
+    ## ranking the corr values according to antiCorrelation parameter
+    if(antiCorrelation == TRUE){
+        rankMatrix <- apply(X=-abs(corrMatrix),FUN=rank,MARGIN=2,na.last="keep")
+    }
+    else{
+        rankMatrix <- apply(X=-corrMatrix,FUN=rank,MARGIN=2,na.last="keep")
+    }
+    rankMatrix <- rankMatrix
+    return(rankMatrix)
+}

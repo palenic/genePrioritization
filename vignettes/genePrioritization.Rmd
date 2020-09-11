@@ -1,0 +1,264 @@
+---
+title: "Disease gene prediction based on co-expression with genePrioritization"
+author: "Chiara Paleni"
+date: "`r Sys.Date()`"
+package: genePrioritization
+output:
+    BiocStyle::html_document
+vignette: |
+    %\VignetteIndexEntry{Disease gene prediction based on co-expression with genePrioritization}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}
+
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+    collapse = TRUE,
+    comment = "#>"
+)
+```
+```{r style, echo = FALSE, results = 'asis'} 
+library(BiocStyle)
+```
+```{r knitr, echo = FALSE} 
+library(knitr)
+```
+
+# Introduction
+
+The package `r Rpackage("genePrioritization")` employs a 
+"guilt-by-association" approach to find potential disease-related 
+genes based on their coexpression with reference "seed genes" 
+known to be (directly or indirectly) associated to that disease 
+or phenotype. This is very useful to identify genes of which 
+little was previously known, which can then be further studied in a 
+laboratory.
+
+## Analysis method
+
+The analysis starts from a gene expression matrix. Given a list of 
+known disease-related genes, or "seed genes", and a list of 
+potential disease-related genes, or "candidates", the steps 
+are the following:
+
+1. compute a co-expression list (of _all_ genes, not only seeds 
+and candidates) for each seed gene;
+2. rank all genes in said list, such that higher coexpression 
+corresponds to rank 1;
+3. compute a relative rank k(c, s)/kmax, where kmax is the total 
+number of genes in each co-expression list (all genes but the seed 
+gene s itself);
+4. assign each candidate gene the product of its relative ranks as 
+a total score;
+5. rank the candidates according to increasing score; lower score 
+means higher coexpression. 
+
+Higher ranked candidates have a higher coexpression with 
+the set of disease-related genes and could be functionally linked 
+to them, thus sharing a role in the disease.
+
+
+# genePrioritization workflow
+
+## Input data
+
+`r Rpackage("genePrioritization")` can use any gene expression matrix 
+as the input, as long as it has genes on the rows, samples on the 
+columns, and has numerical values. Rows and columns also need to be 
+named accordingly. The matrix can be imported from a file, from a `RangedSummarizedExperiment` object, or any source. As an example, 
+we will perform a simple analysis on the known `Bioconductor` 
+package `r Biocexptpkg("airway")` and use package `r Biocannopkg("EnsDb.Hsapiens.v75")` to convert between gene IDs and 
+symbols.
+
+First, we attach the packages and load the expression data.
+
+```{r importing data, message=FALSE}
+library(genePrioritization)
+library(airway)
+library(EnsDb.Hsapiens.v75)
+
+data("airway")
+airway
+
+```
+
+We extract the count matrix. To make the analysis faster, we will 
+use only part of the data: remove genes with expression level 0 
+across all samples and subset the first 12000 genes.
+
+```{r preparing counts matrix} 
+counts <- assay(airway)
+mask <- apply(counts, MARGIN=1, sum)>0
+counts <- counts[mask,]
+counts <- counts[1:12000,]
+head(counts)
+```
+
+Now we select some seed genes for our analysis. We can start from the 
+reference paper from the airway package:
+
+>Himes BE, Jiang X, et al., “RNA-Seq Transcriptome Profiling 
+Identifies CRISPLD2 as a Glucocorticoid Responsive Gene that 
+Modulates Cytokine Function in Airway Smooth Muscle Cells.” 
+PLoS One. 2014 Jun 13;9(6):e99625. PMID: 24926665. GEO: GSE52778.
+
+and select some of those those "previously related to steroid 
+responsiveness and inflammation": DUSP1, FKB5, KLF15. 
+
+```{r preparing seed genes} 
+seedNames<- c("DUSP1","FKBP5","KLF15")
+seedconv <- select(EnsDb.Hsapiens.v75, 
+                                keys=seedNames,
+                                keytype="SYMBOL", 
+                                columns=c("GENEID"))
+seedconv
+seedIDs<-seedconv$GENEID
+
+```
+
+## Candidate prioritization and `RankedGeneList` objects
+
+The analysis is performed by calling the function and requires only 
+one line of code. By not specifying candidates, we are implicitly 
+asking to use all genes in the matrix that are not part of the seed 
+genes as candidates. We can then visualize the results, which are 
+stored in a `RankedGeneList` object.
+
+```{r prioritize candidates} 
+gp <- prioritizeCandidates(counts, seedIDs)
+gp
+
+```
+
+The package also provides a `summary` method to visualize more 
+information about the result.
+
+```{r summary} 
+summary(gp)
+```
+
+There are two ways to interact with this object. You can access the 
+slot directly or you can use the accessor functions `getResults`, 
+`getSeed`, `getCandidates`, `getRanks` and `getCoexpression.`
+
+The `results` slot contains the scores for the candidates, sorted 
+according to increasing scores, such that the candidates that come 
+first have higher coexpression with the seed genes set. `seed` and 
+`candidates` contain gene names; `ranks` and `coexpression` are 
+matrices of the respective values for candidates with respect to 
+seed genes, with rows sorted according to the best candidates.
+
+Let's extract the top 20 candidates and have a look at them.
+
+
+```{r extract results} 
+top20 <- head(getResults(gp),20)
+top20
+```
+To have some more information, we build a simple dataframe containing 
+gene symbols, gene IDs and scores.
+```{r results}
+top20conv <- select(EnsDb.Hsapiens.v75, 
+                    keys= names(top20), 
+                    keytype = "GENEID",
+columns = c("SYMBOL"))
+data.frame(cbind(top20conv,SCORE=as.numeric(top20)))
+```
+
+Some of these genes also appear as upregulated in the quoted study, 
+such as KLF9, NEXN, SPARCL1, CACNB2, CRISPLD2. We choose CRISPLD2 and 
+examine its ranks in the coexpression list for each seed gene.
+
+```{r get ranks} 
+crispld2_score <- getResults(gp)["ENSG00000103196"]
+crispld2_score
+allranks <- getRanks(gp)
+allranks["ENSG00000103196",]
+```
+
+We can do the same for coexpression.
+
+```{r get coexpr} 
+allcoexpr <- getCoexpression(gp)
+allcoexpr["ENSG00000103196",]
+```
+
+Seed and candidates used in the analysis can also be accessed. 
+
+```{r get sc} 
+getSeed(gp)
+head(getCandidates(gp))
+```
+
+## Negative correlation
+
+From the summary we see that some genes are strongly anti-correlated 
+with the seed genes. We might want to consider downregulation as a 
+relevant relation between a seed and a candidate. To do so, we can 
+repeat the analysis setting the `antiCorrelation` paramater to `TRUE.`
+```{r anticorrelation} 
+gp_anti <- prioritizeCandidates(counts, seedIDs, antiCorrelation=TRUE)
+gp_anti
+```
+
+```{r summary 2}
+summary(gp_anti)
+```
+
+
+```{r results 2}
+top20.2 <- head(getResults(gp),20)
+top20.2conv <- select(EnsDb.Hsapiens.v75, 
+                        keys= names(top20.2), 
+                        keytype = "GENEID",
+                        columns = c("SYMBOL"))
+data.frame(cbind(top20.2conv,SCORE=as.numeric(top20.2)))
+
+```
+
+## Step-by-step
+
+The analysis can also be performed step by step with the functions `findCoexpression` (step 1), `rankGenes` (step 2), `candidateScoring` 
+(steps 3-5). The former two will return the full coexpression / rank 
+matrix while the latter returns the same named vector one would get 
+in the `results` slot of a `RankedGeneList` object. A constructor for 
+the class is available, so such an object can be built if so desired.
+
+```{r stepbystep}
+coexpr <- findCoexpression(counts, seedIDs)
+head(coexpr)
+ranks <- rankGenes(coexpr)
+head(ranks)
+scores <- candidateScoring(ranks)
+head(scores)
+
+```
+
+```{r making object}
+myrgl <- RankedGeneList(results = scores, 
+                        seed = seedIDs, 
+                        candidates = names(scores), 
+                        coexpr = coexpr[names(scores),, drop=FALSE], 
+                        ranks = ranks[names(scores),, drop=FALSE])
+summary(myrgl)
+
+```
+
+## Interaction with `RangedSummarizedExperiment`
+
+As seen above, you can extract the counts assay from a RSE object to 
+run the analysis. You can also store the `RankedGeneList` object in 
+the `metadata` slot.
+```{r}
+metadata(airway) <- append(metadata(airway), gp)
+metadata(airway)
+
+```
+
+
+# Session info {.unnumbered}
+
+```{r sessionInfo, echo=FALSE}
+sessionInfo()
+```

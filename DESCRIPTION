@@ -1,0 +1,17 @@
+Package: genePrioritization
+Type: Package
+Title: Find Potential Disease-Related Genes
+Version: 0.99.4
+Authors@R: person("Chiara", "Paleni", email = "chiara.paleni@mail.polimi.it",
+    role = c("aut", "cre"))
+Description: Finds potential disease-related genes based on their coexpression 
+    with known disease-related genes, starting from a gene expression count 
+    matrix and a list of seed genes.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+Imports: stats, methods, utils
+Suggests: knitr, rmarkdown, BiocStyle, testthat, airway, EnsDb.Hsapiens.v75
+VignetteBuilder: knitr
+biocViews: GeneExpression, FunctionalPrediction, Software
