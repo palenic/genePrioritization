@@ -25,12 +25,12 @@ setMethod("show",
                     cat("Seed genes:",object@seed,"\n")
                 else
                     cat("Seed genes",head(object@seed,5),
-                        "[and",NS ,"more]")
+                        "[and", NS-5,"more]")
                 if(NC<20)
                     cat("Ranked candidate genes:",object@candidates,"\n")
                 else
                     cat("Ranked candidate genes:",head(object@candidates,5),
-                        "[and",NC ,"more]")
+                        "[and", NC-5,"more]")
             })
 
 #' @rdname RankedGeneList-methods
@@ -45,7 +45,7 @@ setMethod("summary",
                     cat("Seed genes:\n",object@seed,"\n\n")
                 else
                     cat("Seed genes:\n",head(object@seed, 5),
-                        "[and", NS,"more]\n\n")
+                        "[and", NS-5,"more]\n\n")
                 if(NC<20){
                     cat("Candidate gene scores:\n")
                     print(object@results)
@@ -59,7 +59,7 @@ setMethod("summary",
                 else{
                     cat("Candidate gene scores:\n")
                     print(head(object@results, 5))
-                    cat("[and",NC ,"more]\n\n")
+                    cat("[and",NC-5 ,"more]\n\n")
                     cat("Ranks of candidate genes:\n")
                     print(head(object@ranks, 5))
                     cat("...\n")
