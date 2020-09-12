@@ -24,13 +24,13 @@ setMethod("show",
                 if(NS<20)
                     cat("Seed genes:",object@seed,"\n")
                 else
-                    cat("Seed genes",head(object@seed,5),
-                        "[and", NS-5,"more]")
+                    cat("Seed genes",head(object@seed,4),
+                        "[and", NS-4,"more]")
                 if(NC<20)
                     cat("Ranked candidate genes:",object@candidates,"\n")
                 else
-                    cat("Ranked candidate genes:",head(object@candidates,5),
-                        "[and", NC-5,"more]")
+                    cat("Ranked candidate genes:",head(object@candidates,4),
+                        "[and", NC-4,"more]")
             })
 
 #' @rdname RankedGeneList-methods
@@ -41,11 +41,16 @@ setMethod("summary",
                 NC = length(object@candidates)
                 NS = length(object@seed)
                 cat("Candidate disease genes analysis\n\n")
-                if(NS<20)
-                    cat("Seed genes:\n",object@seed,"\n\n")
-                else
-                    cat("Seed genes:\n",head(object@seed, 5),
-                        "[and", NS-5,"more]\n\n")
+                if(NS<20){
+                    cat("Seed genes:\n")
+                    cat(object@seed)
+                    cat("\n\n")
+                }
+                else{
+                    cat("Seed genes:\n")
+                    print(head(object@seed, 4))
+                    cat("[and",NS-4 ,"more]\n\n")
+                }
                 if(NC<20){
                     cat("Candidate gene scores:\n")
                     print(object@results)
@@ -58,17 +63,17 @@ setMethod("summary",
                 }
                 else{
                     cat("Candidate gene scores:\n")
-                    print(head(object@results, 5))
-                    cat("[and",NC-5 ,"more]\n\n")
+                    print(head(object@results, 4))
+                    cat("[and",NC-4 ,"more]\n\n")
                     cat("Ranks of candidate genes:\n")
-                    print(head(object@ranks, 5))
+                    print(head(object@ranks, 4))
                     cat("...\n")
-                    print(tail(object@ranks, 5))
+                    print(tail(object@ranks, 4))
                     cat("\n")
                     cat("Coexpression matrix of candidate genes:\n")
-                    print(head(object@coexpr, 5))
+                    print(head(object@coexpr, 4))
                     cat("...\n")
-                    print(tail(object@coexpr, 5))
+                    print(tail(object@coexpr, 4))
                     cat("\n")
                 }
             })
